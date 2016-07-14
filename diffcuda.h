@@ -7,19 +7,28 @@
 
 namespace diffcuda {
 
-using Lines = std::tuple<std::vector<uint32_t>&&, std::vector<uint64_t>>;
+using HASH = uint32_t;
 
-struct Insertion {
-  uint32_t dest;
-  uint32_t source;
+using Lines = std::tuple<std::vector<uint32_t>&&, std::vector<HASH>>;
+
+struct Deletion {
+  uint8_t *dest;
+  uint32_t size;
 };
 
-using Script = std::tuple<std::vector<uint32_t> &&, std::vector<Insertion> &&>;
+struct Insertion {
+  uint8_t *dest;
+  uint8_t *source;
+  uint32_t size;
+};
+
+using Script = std::tuple<std::vector<Deletion> &&, std::vector<Insertion> &&>;
 
 Lines preprocess(const uint8_t *data, size_t size) noexcept;
 
-Script diff(const uint8_t *old, size_t old_size, const uint8_t *now,
-            size_t now_size) noexcept;
+std::vector<Script> diff(
+    const uint8_t **old, const size_t *old_size, const uint8_t **now,
+    const size_t *now_size, uint32_t pairs_number, int device) noexcept;
 
 }
 
