@@ -2,6 +2,12 @@
 #define DIFFCUDA_PRIVATE_H
 
 #include <cstdio>
+#include <cstdint>
+#include "diffcuda.h"
+
+#define MAXD 1024
+
+using hash_t = diffcuda::hash_t;
 
 #define ERR(...) fprintf(stderr, __VA_ARGS__)
 #define PANIC(name, ret, ...) do { \
@@ -33,5 +39,22 @@ do { if (cudaMemcpyAsync(dst, src, size, flag) != cudaSuccess) { \
     PANIC("cudaMalloc(" #dest ", %zu)", ret, size); \
   } \
 } while(false)
+
+extern "C" {
+void myers_diff(
+    uint32_t size, const hash_t **old, const uint32_t *old_size,
+    const hash_t **now, const uint32_t *now_size,
+    uint32_t *workspace, uint32_t *deletions, uint32_t *insertions);
+}
+
+constexpr size_t _doffset(size_t prev, int currd, int maxd) {
+  return currd == maxd? prev :
+         _doffset(prev + (2 * currd + 1) / (8 * sizeof(uint32_t)) + 1,
+                  currd + 1, maxd);
+}
+
+constexpr size_t doffset(int D) {
+  return _doffset(0, 0, D);
+}
 
 #endif //DIFFCUDA_PRIVATE_H

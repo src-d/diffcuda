@@ -7,19 +7,20 @@
 
 namespace diffcuda {
 
-using HASH = uint32_t;
+using hash_t = uint64_t;
 
-using Lines = std::tuple<std::vector<uint32_t>&&, std::vector<HASH>>;
+using Lines = std::tuple<std::vector<uint32_t>&&, std::vector<hash_t>>;
 
 struct Deletion {
-  uint8_t *dest;
+  const uint8_t *dest;
   uint32_t size;
 };
 
 struct Insertion {
-  uint8_t *dest;
-  uint8_t *source;
-  uint32_t size;
+  const uint8_t *before;
+  const uint8_t *after;
+  uint32_t size_before;
+  uint32_t size_after;
 };
 
 using Script = std::tuple<std::vector<Deletion> &&, std::vector<Insertion> &&>;
