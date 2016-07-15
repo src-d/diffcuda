@@ -41,9 +41,9 @@ do { if (cudaMemcpyAsync(dst, src, size, flag) != cudaSuccess) { \
 } while(false)
 
 extern "C" {
-void myers_diff(
-    uint32_t size, const hash_t **old, const uint32_t *old_size,
-    const hash_t **now, const uint32_t *now_size,
+bool myers_diff(
+    uint32_t size, uint32_t memo_size_, const hash_t **old,
+    const uint32_t *old_size, const hash_t **now, const uint32_t *now_size,
     uint32_t *workspace, uint32_t *deletions, uint32_t *insertions);
 }
 

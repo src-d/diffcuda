@@ -14,8 +14,8 @@
 
 #include <cassert>
 #include <cstring>
+#include <algorithm>
 #include <memory>
-#include <vector>
 
 #include <cuda_runtime_api.h>
 
@@ -91,7 +91,7 @@ Lines preprocess(const uint8_t *data, size_t size) noexcept {
   return Lines(std::move(lines), std::move(hashes));
 }
 
-constexpr size_t workspace_size = doffset(MAXD + 1) * sizeof(uint32_t);
+constexpr size_t memo_size = doffset(MAXD + 1) * sizeof(uint32_t);
 
 std::vector<Script> diff(
     const uint8_t **old, const size_t *old_size, const uint8_t **now,
@@ -142,7 +142,10 @@ std::vector<Script> diff(
              cudaMemcpyHostToDevice, scripts);
   }
   uint32_t *workspace_cuda;
-  CUMALLOC(workspace_cuda, workspace_size * pairs_number, scripts);
+  const size_t workspace_size =
+      (memo_size + 2 * MAXD + 1) * pairs_number * sizeof(uint32_t);
+  CUMALLOC(workspace_cuda, workspace_size, scripts);
+  CUCH(cudaMemsetAsync(workspace_cuda, 0, workspace_size), scripts);
   unique_devptr workspace_sentinel(workspace_cuda);
   uint32_t *deletions_cuda;
   CUMALLOC(deletions_cuda, MAXD * sizeof(uint32_t) * pairs_number, scripts);
@@ -151,8 +154,12 @@ std::vector<Script> diff(
   CUMALLOC(insertions_cuda, 2 * MAXD * sizeof(uint32_t) * pairs_number, scripts);
   unique_devptr insertions_sentinel(insertions_cuda);
 
-  myers_diff(pairs_number, old_cuda, old_size_cuda, now_cuda, now_size_cuda,
-             workspace_cuda, deletions_cuda, insertions_cuda);
+  bool status = myers_diff(
+      pairs_number, memo_size, old_cuda, old_size_cuda, now_cuda, now_size_cuda,
+      workspace_cuda, deletions_cuda, insertions_cuda);
+  if (!status) {
+    PANIC("myers_diff", scripts);
+  }
 
   std::unique_ptr<uint32_t[]> deletions(new uint32_t[2 * MAXD * pairs_number]);
   CUMEMCPY_ASYNC(deletions.get(), deletions_cuda,
@@ -162,7 +169,7 @@ std::vector<Script> diff(
   CUMEMCPY(insertions.get(), insertions_cuda,
            2 * MAXD * sizeof(uint32_t) * pairs_number,
            cudaMemcpyDeviceToHost, scripts);
-  #pragma omp parallel for schedule(guided)
+  #pragma omp parallel for schedule(auto) ordered
   for (uint32_t i = 0; i < pairs_number; i++) {
     std::vector<Deletion> dels;
     std::vector<Insertion> ins;
@@ -188,7 +195,10 @@ std::vector<Script> diff(
       auto nowsize = nowoff[nowi + 1] - nowoff[nowi];
       ins.push_back(Insertion{oldptr, nowptr, oldsize, nowsize});
     }
-    scripts.push_back(Script(std::move(dels), std::move(ins)));
+    std::reverse(dels.begin(), dels.end());
+    std::reverse(ins.begin(), ins.end());
+    #pragma omp ordered
+    scripts.emplace_back(std::move(dels), std::move(ins));
   }
   return std::move(scripts);
 }
