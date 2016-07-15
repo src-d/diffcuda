@@ -65,6 +65,8 @@ __global__ void myers_diff_cuda(
           }
           memo -= (2 * D - 1) / 32 + 1;
         }
+        mydels[0] = UINT32_MAX;
+        myins[0] = myins[1] = UINT32_MAX;
         return;
       }
     }
