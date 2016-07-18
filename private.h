@@ -40,9 +40,13 @@ do { if (cudaMemcpyAsync(dst, src, size, flag) != cudaSuccess) { \
   } \
 } while(false)
 
+#define CEIL(x, r) (x + r * ((x & (r - 1)) > 0) - (x & (r - 1)))
+#define CEIL_PTR(x, r) (x + r * ((reinterpret_cast<intptr_t>(x) & (r - 1)) > 0) \
+    - (reinterpret_cast<intptr_t>(x) & (r - 1)))
+
 extern "C" {
 bool myers_diff(
-    uint32_t size, uint32_t memo_size_, const hash_t **old,
+    int device, uint32_t size, uint32_t memo_size_, const hash_t **old,
     const uint32_t *old_size, const hash_t **now, const uint32_t *now_size,
     uint32_t *workspace, uint32_t *deletions, uint32_t *insertions);
 }
@@ -57,4 +61,4 @@ constexpr size_t doffset(int D) {
   return _doffset(0, 0, D);
 }
 
-#endif //DIFFCUDA_PRIVATE_H
+#endif // DIFFCUDA_PRIVATE_H
