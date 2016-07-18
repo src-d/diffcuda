@@ -23,10 +23,12 @@ def diff(t1, t2):
                 x = state[k - 1 + zp][0] + 1
                 ref = "left"
             y = x - k
+            print(x, y, t1[x], t2[y])
             while x < N and y < M and t1[x] == t2[y]:
                 x += 1
                 y += 1
             state[k + zp] = x, ref
+            print(k, x)
             if x >= N and y >= M:
                 rpath = []
                 while D > 0:
@@ -50,8 +52,10 @@ def diff(t1, t2):
                 return reversed(rpath)
         archive.append(list(state))
 
-
-tdiff = diff(sys.argv[1], sys.argv[2])
+with open(sys.argv[1]) as f1:
+    with open(sys.argv[2]) as f2:
+        tdiff = diff([l[:-1] for l in f1.readlines()],
+                     [l[:-1] for l in f2.readlines()])
 
 for l in tdiff:
     print(l)

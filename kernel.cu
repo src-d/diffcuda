@@ -23,7 +23,9 @@ __global__ void myers_diff_cuda(
   extern __shared__ uint32_t kindergarten[];
   int kindergarten_size = kindergarten_D * 2 + 1;
   uint32_t *kindergarten_state = kindergarten + blockIdx.x * kindergarten_size;
-  memset(kindergarten_state, 0, kindergarten_size * sizeof(uint32_t));
+  for (uint32_t i = 0; i < kindergarten_size; i++) {
+    kindergarten_state[i] = 0;
+  }
   int zp = kindergarten_D + 1;
   uint32_t *state = kindergarten_state;
   uint32_t *memo = workspace + size * (2 * MAXD + 1) + memo_size * index;
@@ -39,9 +41,9 @@ __global__ void myers_diff_cuda(
     for (int k = -D; k <= D; k += 2) {
       uint32_t x;
       bool ref; // true - up, false - left
-      uint32_t up_state, left_state;
-      if (k == -D or (k != D and
-          (left_state = state[k - 1 + zp]) < (up_state = state[k + 1 + zp]))) {
+      uint32_t up_state = (k == D)? 0 : state[k + 1 + zp];
+      uint32_t left_state = (k == -D)? 0 : state[k - 1 + zp];
+      if (k == -D or (k != D and left_state < up_state)) {
         x = up_state;
         ref = true;
       } else {

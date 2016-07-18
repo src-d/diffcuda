@@ -36,7 +36,6 @@ class unique_devptr : public unique_devptr_parent {
 Lines preprocess(const uint8_t *data, size_t size) noexcept {
   assert(data);
   assert(size > 0);
-  assert((reinterpret_cast<intptr_t>(data) & 0x1F) == 0);
   std::shared_ptr<std::vector<uint32_t>> lines(new std::vector<uint32_t>);
   lines->reserve(size / MEAN_LINES);
   std::shared_ptr<std::vector<hash_t>> hashes(new std::vector<hash_t>);
@@ -117,16 +116,11 @@ std::vector<Script> diff(
   assert(pairs_number > 0);
   std::vector<Script> scripts;
   CUCH(cudaSetDevice(device), scripts);
-  std::vector<Lines> old_lines, now_lines;
-  #pragma omp parallel for schedule(guided) ordered
+  std::vector<Lines> old_lines(pairs_number), now_lines(pairs_number);
+  #pragma omp parallel for schedule(guided)
   for (uint32_t i = 0; i < pairs_number; i++) {
-    auto old_tmp = preprocess(old[i], old_size[i]);
-    auto now_tmp = preprocess(now[i], now_size[i]);
-    #pragma omp ordered
-    {
-      old_lines.push_back(old_tmp);
-      now_lines.push_back(now_tmp);
-    }
+    old_lines[i] = preprocess(old[i], old_size[i]);
+    now_lines[i] = preprocess(now[i], now_size[i]);
   }
   const hash_t **old_cuda, **now_cuda;
   CUMALLOC(old_cuda, pairs_number * sizeof(uint32_t*), scripts);
@@ -140,13 +134,14 @@ std::vector<Script> diff(
   unique_devptr now_size_cuda_sentinel(now_size_cuda);
   std::vector<unique_devptr> old_cuda_ptrs, now_cuda_ptrs;
   for (uint32_t i = 0; i < pairs_number; i++) {
-    size_t size = std::get<1>(old_lines[i])->size() * sizeof(hash_t);
     uint32_t *old_cuda_i, *now_cuda_i;
+    size_t size = std::get<1>(old_lines[i])->size() * sizeof(hash_t);
     CUMALLOC(old_cuda_i, size, scripts);
     CUMEMCPY_ASYNC(old_cuda_i, std::get<1>(old_lines[i])->data(), size,
                    cudaMemcpyHostToDevice, scripts);
     CUMEMCPY_ASYNC(old_cuda + i, &old_cuda_i, sizeof(uint32_t*),
                    cudaMemcpyHostToDevice, scripts);
+    size /= sizeof(hash_t);
     CUMEMCPY(old_size_cuda + i, &size, sizeof(uint32_t),
              cudaMemcpyHostToDevice, scripts);
     old_cuda_ptrs.emplace_back(old_cuda_i);
@@ -156,6 +151,7 @@ std::vector<Script> diff(
                    cudaMemcpyHostToDevice, scripts);
     CUMEMCPY_ASYNC(now_cuda + i, &now_cuda_i, sizeof(uint32_t*),
                    cudaMemcpyHostToDevice, scripts);
+    size /= sizeof(hash_t);
     CUMEMCPY(now_size_cuda + i, &size, sizeof(uint32_t),
              cudaMemcpyHostToDevice, scripts);
     now_cuda_ptrs.emplace_back(now_cuda_i);
@@ -188,7 +184,8 @@ std::vector<Script> diff(
   CUMEMCPY(insertions.get(), insertions_cuda,
            2 * MAXD * sizeof(uint32_t) * pairs_number,
            cudaMemcpyDeviceToHost, scripts);
-  #pragma omp parallel for schedule(auto) ordered
+  scripts.resize(pairs_number);
+  #pragma omp parallel for schedule(guided)
   for (uint32_t i = 0; i < pairs_number; i++) {
     std::shared_ptr<std::vector<Deletion>> dels(new std::vector<Deletion>);
     std::shared_ptr<std::vector<Insertion>> ins(new std::vector<Insertion>);
@@ -216,8 +213,7 @@ std::vector<Script> diff(
     }
     std::reverse(dels->begin(), dels->end());
     std::reverse(ins->begin(), ins->end());
-    #pragma omp ordered
-    scripts.emplace_back(std::move(dels), std::move(ins));
+    scripts[i] = std::make_tuple(dels, ins);
   }
   return std::move(scripts);
 }
@@ -265,7 +261,10 @@ int main(int argc, const char **argv) {
   auto scripts = diffcuda::diff(
       const_cast<const uint8_t**>(&old_data), &old_size,
       const_cast<const uint8_t**>(&now_data), &now_size, 1);
-  printf("%zu %zu\n", std::get<0>(scripts[0])->size(), std::get<1>(scripts[0])->size());
+  if (scripts.size() > 0) {
+    printf("%zu %zu\n", std::get<0>(scripts[0])->size(),
+           std::get<1>(scripts[0])->size());
+  }
   /*
   auto result = diffcuda::preprocess(old_data, old_size);
   std::vector<uint32_t> &&lines(std::move(std::get<0>(result)));
