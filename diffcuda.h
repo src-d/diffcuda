@@ -14,15 +14,17 @@ using Lines = std::tuple<std::shared_ptr<std::vector<uint32_t>>,
                          std::shared_ptr<std::vector<hash_t>>>;
 
 struct Deletion {
-  const uint8_t *dest;
+  const uint8_t *data;
   uint32_t size;
+  uint32_t line;
 };
 
 struct Insertion {
-  const uint8_t *before;
-  const uint8_t *after;
-  uint32_t size_before;
-  uint32_t size_after;
+  const uint8_t *data;
+  const uint8_t *where;
+  uint32_t size;
+  uint32_t line_to;
+  uint32_t line_from;
 };
 
 using Script = std::tuple<std::shared_ptr<std::vector<Deletion>>,

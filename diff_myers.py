@@ -10,7 +10,7 @@ def diff(t1, t2):
     N = len(t1)
     M = len(t2)
     MAX = M + N
-    zp = MAX + 1
+    zp = MAX
     state = [(0,)] * (2 * MAX + 1)
     archive = []
 

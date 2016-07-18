@@ -196,7 +196,7 @@ std::vector<Script> diff(
       auto& off = *std::get<0>(old_lines[i]);
       auto ptr = old[i] + off[di];
       auto size = off[di + 1] - off[di];
-      dels->push_back(Deletion{ptr, size});
+      dels->push_back(Deletion{data: ptr, size: size, line: di});
     }
     offset = i;
     offset *= 2 * MAXD;
@@ -205,11 +205,11 @@ std::vector<Script> diff(
       auto nowi = insertions[offset + 1];
       auto& oldoff = *std::get<0>(old_lines[i]);
       auto oldptr = old[i] + oldoff[oldi];
-      auto oldsize = oldoff[oldi + 1] - oldoff[oldi];
       auto& nowoff = *std::get<0>(now_lines[i]);
       auto nowptr = now[i] + nowoff[nowi];
       auto nowsize = nowoff[nowi + 1] - nowoff[nowi];
-      ins->push_back(Insertion{oldptr, nowptr, oldsize, nowsize});
+      ins->push_back(Insertion{data: nowptr, where: oldptr, size: nowsize,
+                               line_to: oldi, line_from: nowi});
     }
     std::reverse(dels->begin(), dels->end());
     std::reverse(ins->begin(), ins->end());
@@ -258,12 +258,23 @@ int main(int argc, const char **argv) {
   }
   close(file);
 
-  auto scripts = diffcuda::diff(
-      const_cast<const uint8_t**>(&old_data), &old_size,
-      const_cast<const uint8_t**>(&now_data), &now_size, 1);
-  if (scripts.size() > 0) {
-    printf("%zu %zu\n", std::get<0>(scripts[0])->size(),
-           std::get<1>(scripts[0])->size());
+  std::unique_ptr<const uint8_t*[]> old(new const uint8_t*[2]);
+  std::unique_ptr<const uint8_t*[]> now(new const uint8_t*[2]);
+  old[0] = old[1] = old_data;
+  now[0] = now[1] = now_data;
+  std::unique_ptr<size_t[]> old_sizes(new size_t[2]);
+  std::unique_ptr<size_t[]> now_sizes(new size_t[2]);
+  old_sizes[0] = old_sizes[1] = old_size;
+  now_sizes[0] = now_sizes[1] = now_size;
+  auto scripts = diffcuda::diff(old.get(), old_sizes.get(), now.get(),
+                                now_sizes.get(), 2);
+  for (auto& s : scripts) {
+    for (auto& del : *std::get<0>(s)) {
+      printf("- %u %.*s", del.line, del.size, del.data);
+    }
+    for (auto& ins : *std::get<1>(s)) {
+      printf("+ %u %.*s", ins.line_to, ins.size, ins.data);
+    }
   }
   /*
   auto result = diffcuda::preprocess(old_data, old_size);
