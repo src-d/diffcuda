@@ -19,23 +19,24 @@ __global__ void myers_diff_cuda(
   uint32_t N = old_size[index];
   uint32_t M = now_size[index];
   uint32_t *adult_state = workspace + index * (2 * MAXD + 1);
-  int adult_zp = M + N + 1;
+  int adult_zp = MAXD;
   extern __shared__ uint32_t kindergarten[];
   int kindergarten_size = kindergarten_D * 2 + 1;
   uint32_t *kindergarten_state = kindergarten + blockIdx.x * kindergarten_size;
   for (uint32_t i = 0; i < kindergarten_size; i++) {
     kindergarten_state[i] = 0;
   }
-  int zp = kindergarten_D + 1;
+  int zp = kindergarten_D;
   uint32_t *state = kindergarten_state;
   uint32_t *memo = workspace + size * (2 * MAXD + 1) + memo_size * index;
   uint32_t *mydels = deletions + index * MAXD;
   uint32_t *myins = insertions + index * 2 * MAXD;
   for (int D = 0; D < MAXD; D++) {
     if (D == kindergarten_D + 1) {
+      for (int i = 0; i < kindergarten_size; i++) {
+        adult_state[i + adult_zp - zp] = state[i];
+      }
       state = adult_state;
-      memcpy(state + adult_zp - zp, kindergarten_state,
-             kindergarten_size * sizeof(uint32_t));
       zp = adult_zp;
     }
     for (int k = -D; k <= D; k += 2) {
@@ -54,9 +55,9 @@ __global__ void myers_diff_cuda(
       while (x < N and y < M and oldh[x] == nowh[y]) {
         x++; y++;
       }
-      auto pos = k + zp;
-      state[pos] = x;
+      state[k + zp] = x;
       if (ref) {
+        auto pos = k + adult_zp;
         memo[pos / 32] |= 1 << (pos % 32);
       }
       if (x >= N and y >= M) {
@@ -69,7 +70,7 @@ __global__ void myers_diff_cuda(
           if (x == 0 and y == 0) {
             break;
           }
-          auto pos = k + zp;
+          auto pos = k + adult_zp;
           if (memo[pos / 32] & (1 << (pos % 32))) {
             k++; y--;
             myins[0] = x;

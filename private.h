@@ -11,7 +11,7 @@ using hash_t = diffcuda::hash_t;
 
 #define ERR(...) fprintf(stderr, __VA_ARGS__)
 #define PANIC(name, ret, ...) do { \
-  ERR("%s:%d: " name " failed: %s", __FILE__, __LINE__, \
+  ERR("%s:%d: " name " failed: %s\n", __FILE__, __LINE__, \
       ##__VA_ARGS__, cudaGetErrorString(cudaGetLastError())); \
   return ret; \
 } while (false)
