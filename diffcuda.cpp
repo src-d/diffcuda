@@ -38,6 +38,7 @@ Lines preprocess(const uint8_t *data, size_t size) noexcept {
   assert(size > 0);
   std::shared_ptr<std::vector<uint32_t>> lines(new std::vector<uint32_t>);
   lines->reserve(size / MEAN_LINES);
+  lines->push_back(0);
   std::shared_ptr<std::vector<hash_t>> hashes(new std::vector<hash_t>);
   hashes->reserve(size / MEAN_LINES);
   uint32_t ppos = 0;
@@ -196,7 +197,7 @@ std::vector<Script> diff(
       auto& off = *std::get<0>(old_lines[i]);
       auto ptr = old[i] + off[di];
       auto size = off[di + 1] - off[di];
-      dels->push_back(Deletion{data: ptr, size: size, line: di});
+      dels->push_back(Deletion{data: ptr, size: size, line: di + 1});
     }
     offset = i;
     offset *= 2 * MAXD;
@@ -209,7 +210,7 @@ std::vector<Script> diff(
       auto nowptr = now[i] + nowoff[nowi];
       auto nowsize = nowoff[nowi + 1] - nowoff[nowi];
       ins->push_back(Insertion{data: nowptr, where: oldptr, size: nowsize,
-                               line_to: oldi, line_from: nowi});
+                               line_to: oldi + 1, line_from: nowi + 1});
     }
     std::reverse(dels->begin(), dels->end());
     std::reverse(ins->begin(), ins->end());
@@ -273,7 +274,7 @@ int main(int argc, const char **argv) {
       printf("- %u %.*s", del.line, del.size, del.data);
     }
     for (auto& ins : *std::get<1>(s)) {
-      printf("+ %u %.*s", ins.line_to, ins.size, ins.data);
+      printf("+ %u@%u %.*s", ins.line_to, ins.line_from, ins.size, ins.data);
     }
   }
   /*

@@ -40,13 +40,13 @@ def diff(t1, t2):
                         break
                     ref = state[k + zp][1]
                     if ref == "up":
-                        rpath.append("%d %d + %s" % (k, x, t2[y-1]))
-                        k += 1
                         y -= 1
+                        rpath.append("%d %d + %s" % (k, x + 1, t2[y]))
+                        k += 1
                     else:
-                        rpath.append("%d %d - %s" % (k, x, t1[x-1]))
-                        k -= 1
                         x -= 1
+                        rpath.append("%d %d - %s" % (k, x + 1, t1[x]))
+                        k -= 1
                     D -= 1
                     state = archive[D]
                 return reversed(rpath)
