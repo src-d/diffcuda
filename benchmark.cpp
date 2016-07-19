@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include <fstream>
+#include <chrono>
 
 #include <cuda_runtime_api.h>
 
@@ -59,9 +60,14 @@ int main(int argc, const char **argv) {
     close(file);
   }
 
+  std::chrono::high_resolution_clock timer;
+  auto start = timer.now();
   auto scripts = diffcuda::diff(
       data_old.data(), sizes_old.data(), data_now.data(), sizes_now.data(),
       data_old.size());
+  auto finish = timer.now();
+  printf("Processed %zu pairs in %li ms\n", scripts.size(),
+         std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count());
 
   /*
   for (auto& s : scripts) {
