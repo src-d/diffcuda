@@ -5,11 +5,6 @@
 
 #include "diffcuda.h"
 
-#include <fcntl.h>
-#include <linux/fs.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <immintrin.h>
 
 #include <cassert>
@@ -220,69 +215,3 @@ std::vector<Script> diff(
 }
 
 }  // namespace diffcuda
-
-int main(int argc, const char **argv) {
-  if (argc != 3) {
-    PANIC("Usage: %s <file before> <file after>", 1, argv[0]);
-  }
-  size_t old_size;
-  {
-    struct stat sstat;
-    stat(argv[1], &sstat);
-    old_size = static_cast<size_t>(sstat.st_size);
-  }
-  std::unique_ptr<uint8_t []> old_contents(new uint8_t[old_size + BLOCK_SIZE * 2]);
-  auto old_data = old_contents.get();
-  old_data = CEIL_PTR(old_data, BLOCK_SIZE);
-  auto file = open(argv[1], O_RDONLY | O_DIRECT);
-  auto size_read = read(file, old_data, CEIL(old_size, BLOCK_SIZE));
-  if (size_read != static_cast<ssize_t>(old_size)) {
-    fprintf(stderr, "Failed to read %s", argv[1]);
-    return 1;
-  }
-  close(file);
-
-  size_t now_size;
-  {
-    struct stat sstat;
-    stat(argv[2], &sstat);
-    now_size = static_cast<size_t>(sstat.st_size);
-  }
-  std::unique_ptr<uint8_t []> now_contents(new uint8_t[now_size + BLOCK_SIZE * 2]);
-  auto now_data = now_contents.get();
-  now_data = CEIL_PTR(now_data, BLOCK_SIZE);
-  file = open(argv[2], O_RDONLY | O_DIRECT);
-  size_read = read(file, now_data, CEIL(now_size, BLOCK_SIZE));
-  if (size_read != static_cast<ssize_t>(now_size)) {
-    fprintf(stderr, "Failed to read %s", argv[2]);
-    return 1;
-  }
-  close(file);
-
-  std::unique_ptr<const uint8_t*[]> old(new const uint8_t*[2]);
-  std::unique_ptr<const uint8_t*[]> now(new const uint8_t*[2]);
-  old[0] = old[1] = old_data;
-  now[0] = now[1] = now_data;
-  std::unique_ptr<size_t[]> old_sizes(new size_t[2]);
-  std::unique_ptr<size_t[]> now_sizes(new size_t[2]);
-  old_sizes[0] = old_sizes[1] = old_size;
-  now_sizes[0] = now_sizes[1] = now_size;
-  auto scripts = diffcuda::diff(old.get(), old_sizes.get(), now.get(),
-                                now_sizes.get(), 2);
-  for (auto& s : scripts) {
-    for (auto& del : *std::get<0>(s)) {
-      printf("- %u %.*s", del.line, del.size, del.data);
-    }
-    for (auto& ins : *std::get<1>(s)) {
-      printf("+ %u@%u %.*s", ins.line_to, ins.line_from, ins.size, ins.data);
-    }
-  }
-  /*
-  auto result = diffcuda::preprocess(old_data, old_size);
-  std::vector<uint32_t> &&lines(std::move(std::get<0>(result)));
-  std::vector<diffcuda::hash_t> &&hashes(std::move(std::get<1>(result)));
-  printf("%p %p %zu\n", lines.data(), hashes.data(), lines.old_size());
-  */
-
-  return 0;
-}
