@@ -35,8 +35,7 @@ int main(int argc, const char **argv) {
     auto file = open(pold.c_str(), O_RDONLY | O_DIRECT);
     auto size_read = read(file, old_ptr, CEIL(old_size, BLOCK_SIZE));
     if (size_read != static_cast<ssize_t>(old_size)) {
-      fprintf(stderr, "Failed to read %s", pold.c_str());
-      return 1;
+      PANIC("Failed to read %s", 1, pold.c_str());
     }
     close(file);
 
@@ -54,8 +53,7 @@ int main(int argc, const char **argv) {
     file = open(pnow.c_str(), O_RDONLY | O_DIRECT);
     size_read = read(file, now_ptr, CEIL(now_size, BLOCK_SIZE));
     if (size_read != static_cast<ssize_t>(now_size)) {
-      fprintf(stderr, "Failed to read %s", pnow.c_str());
-      return 1;
+      PANIC("Failed to read %s", 1, pnow.c_str());
     }
     close(file);
   }
