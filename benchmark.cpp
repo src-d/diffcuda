@@ -20,7 +20,12 @@ int main(int argc, const char **argv) {
   std::vector<size_t> sizes_old, sizes_now;
   std::ifstream paths(argv[1]);
   std::string pold, pnow;
+  printf("Reading files...\n");
   while (paths >> pold >> pnow) {
+    if (data_old.size() % 100 == 0) {
+      printf("\r%zu", data_old.size());
+      fflush(stdout);
+    }
     size_t old_size;
     {
       struct stat sstat;
@@ -58,6 +63,7 @@ int main(int argc, const char **argv) {
     close(file);
   }
 
+  printf("\nStarted benchmark\n");
   std::chrono::high_resolution_clock timer;
   auto start = timer.now();
   auto scripts = diffcuda::diff(

@@ -22,7 +22,7 @@ __global__ void myers_diff_cuda(
   int adult_zp = MAXD;
   extern __shared__ uint32_t kindergarten[];
   int kindergarten_size = kindergarten_D * 2 + 1;
-  uint32_t *kindergarten_state = kindergarten + blockIdx.x * kindergarten_size;
+  uint32_t *kindergarten_state = kindergarten + threadIdx.x * kindergarten_size;
   for (uint32_t i = 0; i < kindergarten_size; i++) {
     kindergarten_state[i] = 0;
   }

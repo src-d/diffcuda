@@ -23,7 +23,7 @@ def diff(t1, t2):
                 x = state[k - 1 + zp][0] + 1
                 ref = "left"
             y = x - k
-            print(x, y, t1[x], t2[y])
+            # print(x, y, t1[x], t2[y])
             while x < N and y < M and t1[x] == t2[y]:
                 x += 1
                 y += 1

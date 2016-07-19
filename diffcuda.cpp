@@ -52,7 +52,7 @@ Lines preprocess(const uint8_t *data, size_t size) noexcept {
     }
   }
 
-  for (; j < size - 31; j += 32) {
+  for (; size >= 31 && j < size - 31; j += 32) {
     __m256i buffer = _mm256_load_si256(
         reinterpret_cast<const __m256i *>(data + j));
     buffer = _mm256_cmpeq_epi8(buffer, newline);
@@ -199,6 +199,7 @@ std::vector<Script> diff(
     for (; insertions[offset] != UINT32_MAX; offset += 2) {
       auto oldi = insertions[offset];
       auto nowi = insertions[offset + 1];
+      assert(nowi != UINT32_MAX);
       auto& oldoff = *std::get<0>(old_lines[i]);
       auto oldptr = old[i] + oldoff[oldi];
       auto& nowoff = *std::get<0>(now_lines[i]);
