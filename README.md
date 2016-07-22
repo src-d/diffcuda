@@ -6,9 +6,9 @@ In other words, this project tries to improve on diff-ing many files at once and
 increasing the speed of a single diff operation.
 
 The approach chosen is as follows:
-#. Extract line endings.
-#. Hash each line.
-#. Apply Myers algorithm to hashes on the GPU.
+- Extract line endings.
+- Hash each line.
+- Apply Myers algorithm to hashes on the GPU.
 
 Results
 -------
